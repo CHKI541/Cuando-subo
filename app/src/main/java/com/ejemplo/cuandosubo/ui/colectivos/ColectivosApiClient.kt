@@ -9,7 +9,11 @@ import java.net.URL
 import java.net.URLEncoder
 
 object ColectivosApiClient {
-    private const val BASE_URL = "https://us-central1-locksuite-nueva-default-rtdb.cloudfunctions.net/colectivosApi"
+    // FIX (auditoría): la URL anterior apuntaba a
+    // "us-central1-locksuite-nueva-default-rtdb.cloudfunctions.net" (mezcla del hostname
+    // de Realtime Database con el de Cloud Functions) y devolvía 404 siempre.
+    // Esta es la URL real y verificada de la Cloud Function "colectivosApi".
+    private const val BASE_URL = "https://us-central1-locksuite-nueva.cloudfunctions.net/colectivosApi"
 
     suspend fun buscarLinea(query: String): List<RouteInfo> = withContext(Dispatchers.IO) {
         val urlStr = "$BASE_URL?action=buscarLinea&query=${URLEncoder.encode(query, "UTF-8")}"
@@ -17,7 +21,7 @@ object ColectivosApiClient {
         connection.requestMethod = "GET"
         connection.connectTimeout = 12000
         connection.readTimeout = 12000
-        
+
         try {
             if (connection.responseCode == 200) {
                 val text = connection.inputStream.bufferedReader().use { it.readText() }
@@ -47,7 +51,7 @@ object ColectivosApiClient {
         connection.requestMethod = "GET"
         connection.connectTimeout = 12000
         connection.readTimeout = 12000
-        
+
         try {
             if (connection.responseCode == 200) {
                 val text = connection.inputStream.bufferedReader().use { it.readText() }
@@ -76,7 +80,7 @@ object ColectivosApiClient {
         connection.requestMethod = "GET"
         connection.connectTimeout = 12000
         connection.readTimeout = 12000
-        
+
         try {
             if (connection.responseCode == 200) {
                 val text = connection.inputStream.bufferedReader().use { it.readText() }
@@ -101,14 +105,14 @@ object ColectivosApiClient {
             connection.disconnect()
         }
     }
-    
+
     suspend fun geocodeAddress(query: String): List<GeocodedAddress> = withContext(Dispatchers.IO) {
         val urlStr = "https://servicios.usig.buenosaires.gob.ar/normalizar/?direccion=${URLEncoder.encode(query, "UTF-8")}&geocodificar=true"
         val connection = URL(urlStr).openConnection() as HttpURLConnection
         connection.requestMethod = "GET"
         connection.connectTimeout = 10000
         connection.readTimeout = 10000
-        
+
         try {
             if (connection.responseCode == 200) {
                 val text = connection.inputStream.bufferedReader().use { it.readText() }

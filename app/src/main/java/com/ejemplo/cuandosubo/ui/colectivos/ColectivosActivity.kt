@@ -34,7 +34,7 @@ class ColectivosActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         // Cargar base de datos de paradas
         StopsDatabase.initialize(this)
 
@@ -75,7 +75,7 @@ fun ColectivosAppTheme(content: @Composable () -> Unit) {
 fun ColectivosMainScreen(onBack: () -> Unit) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Favoritos", "Por Línea", "Por Dirección")
-    
+
     // Estado global de la parada seleccionada para ver arribos
     var activeStopId by remember { mutableStateOf<String?>(null) }
     var activeStopName by remember { mutableStateOf<String?>(null) }
@@ -83,13 +83,13 @@ fun ColectivosMainScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     Text(
-                        "Cuando SUBO CABA", 
+                        "Cuando SUBO CABA",
                         fontWeight = FontWeight.Bold,
                         color = AccentColor,
                         fontSize = 20.sp
-                    ) 
+                    )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = DarkBackground
@@ -119,12 +119,12 @@ fun ColectivosMainScreen(onBack: () -> Unit) {
                         Tab(
                             selected = selectedTab == index,
                             onClick = { selectedTab = index },
-                            text = { 
+                            text = {
                                 Text(
-                                    title, 
+                                    title,
                                     fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
                                     fontSize = 14.sp
-                                ) 
+                                )
                             }
                         )
                     }
@@ -176,19 +176,19 @@ fun FavoritosTab(onStopClick: (String, String) -> Unit) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(
-                    imageVector = Icons.Default.StarOutline, 
+                    imageVector = Icons.Default.StarOutline,
                     contentDescription = null,
                     tint = TextGray,
                     modifier = Modifier.size(64.dp)
                 )
                 Text(
-                    "No tienes paradas favoritas.", 
+                    "No tienes paradas favoritas.",
                     color = TextGray,
                     textAlign = TextAlign.Center,
                     fontSize = 16.sp
                 )
                 Text(
-                    "Busca una línea o dirección y toca la estrella.", 
+                    "Busca una línea o dirección y toca la estrella.",
                     color = TextGray.copy(alpha = 0.7f),
                     textAlign = TextAlign.Center,
                     fontSize = 12.sp
@@ -215,7 +215,7 @@ fun FavoritosTab(onStopClick: (String, String) -> Unit) {
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(stop.name, fontWeight = FontWeight.Bold, color = TextWhite, fontSize = 16.sp)
-                            Text("Código: ${stop.id.replace("14_", "")}", color = TextGray, fontSize = 12.sp)
+                            Text("Código: ${stop.id.removePrefix("14_")}", color = TextGray, fontSize = 12.sp)
                         }
                         IconButton(onClick = {
                             toggleFavorite(context, stop.id, stop.name)
@@ -242,7 +242,7 @@ fun LineasTab(onStopClick: (String, String) -> Unit) {
     var selectedRouteId by remember { mutableStateOf<String?>(null) }
     var selectedRouteName by remember { mutableStateOf<String?>(null) }
     var stopsList by remember { mutableStateOf<List<StopInfo>>(emptyList()) }
-    
+
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -385,7 +385,7 @@ fun LineasTab(onStopClick: (String, String) -> Unit) {
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
                                     Text(stop.name, fontWeight = FontWeight.Bold, color = TextWhite, fontSize = 14.sp)
-                                    Text("Código: ${stop.id.replace("14_", "")}", color = TextGray, fontSize = 11.sp)
+                                    Text("Código: ${stop.id.removePrefix("14_")}", color = TextGray, fontSize = 11.sp)
                                 }
                             }
                         }
@@ -599,7 +599,7 @@ fun ArribosDialog(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stopName, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextWhite)
-                    Text("Código Parada: ${stopId.replace("14_", "")}", fontSize = 12.sp, color = TextGray)
+                    Text("Código Parada: ${stopId.removePrefix("14_")}", fontSize = 12.sp, color = TextGray)
                 }
                 Row {
                     IconButton(onClick = {
@@ -656,9 +656,9 @@ fun ArribosDialog(
                                     Column(modifier = Modifier.weight(1f)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Text(
-                                                arrival.route, 
-                                                fontWeight = FontWeight.Bold, 
-                                                fontSize = 18.sp, 
+                                                arrival.route,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 18.sp,
                                                 color = AccentColor
                                             )
                                             if (arrival.isLive) {
@@ -676,7 +676,7 @@ fun ArribosDialog(
                                         Spacer(modifier = Modifier.height(2.dp))
                                         Text(arrival.destination, fontSize = 12.sp, color = TextWhite)
                                     }
-                                    
+
                                     Column(horizontalAlignment = Alignment.End) {
                                         Text(
                                             if (arrival.minutes == 0) "Arribando" else "${arrival.minutes} min",
@@ -725,15 +725,15 @@ private fun isStopFavorite(context: Context, stopId: String): Boolean {
 private fun toggleFavorite(context: Context, stopId: String, stopName: String) {
     val prefs = context.getSharedPreferences("colectivos_prefs", Context.MODE_PRIVATE)
     val favSet = prefs.getStringSet("favorites", emptySet())?.toMutableSet() ?: mutableSetOf()
-    
+
     val item = "$stopId|$stopName"
     val existing = favSet.firstOrNull { it.startsWith("$stopId|") }
-    
+
     if (existing != null) {
         favSet.remove(existing)
     } else {
         favSet.add(item)
     }
-    
+
     prefs.edit().putStringSet("favorites", favSet).apply()
 }

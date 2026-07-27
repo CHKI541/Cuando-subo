@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_store_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="14dp"
+    android:background="@drawable/widget_bg">
+
+    <FrameLayout
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:background="@drawable/widget_icon_circle_bg"
+        android:padding="9dp">
+
+        <ImageView
+            android:id="@+id/widget_store_icon"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_store"
+            android:contentDescription="Tienda" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/widget_store_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Tienda"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:fontFamily="sans-serif-medium"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/widget_store_subtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="Aplicaciones"
+        android:textColor="#93C5FD"
+        android:textSize="11sp"
+        android:fontFamily="sans-serif" />
+
+</LinearLayout>

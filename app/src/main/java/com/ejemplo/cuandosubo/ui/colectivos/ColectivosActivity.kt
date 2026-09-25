@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
@@ -215,7 +216,7 @@ fun FavoritosTab(onStopClick: (String, String) -> Unit) {
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(stop.name, fontWeight = FontWeight.Bold, color = TextWhite, fontSize = 16.sp)
-                            Text("Código: ${stop.id.removePrefix("14_")}", color = TextGray, fontSize = 12.sp)
+                            Text("Código: ${codigoParada(stop.id)}", color = TextGray, fontSize = 12.sp)
                         }
                         IconButton(onClick = {
                             toggleFavorite(context, stop.id, stop.name)
@@ -266,7 +267,7 @@ fun LineasTab(onStopClick: (String, String) -> Unit) {
                                         Toast.makeText(context, "No se encontraron ramales.", Toast.LENGTH_SHORT).show()
                                     }
                                 } catch (e: Exception) {
-                                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, e.message ?: "Error al buscar la línea.", Toast.LENGTH_LONG).show()
                                 } finally {
                                     isLoading = false
                                 }
@@ -308,7 +309,7 @@ fun LineasTab(onStopClick: (String, String) -> Unit) {
                                         try {
                                             stopsList = ColectivosApiClient.obtenerParadas(route.id)
                                         } catch (e: Exception) {
-                                            Toast.makeText(context, "Error cargando paradas: ${e.message}", Toast.LENGTH_LONG).show()
+                                            Toast.makeText(context, e.message ?: "Error cargando paradas.", Toast.LENGTH_LONG).show()
                                             selectedRouteId = null
                                         } finally {
                                             isLoading = false
@@ -357,35 +358,51 @@ fun LineasTab(onStopClick: (String, String) -> Unit) {
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(stopsList) { stop ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onStopClick(stop.id, stop.name) },
-                            colors = CardDefaults.cardColors(containerColor = CardBackground),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(14.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                    stopsList.forEachIndexed { index, stop ->
+                        // Encabezado cada vez que cambia el sentido del recorrido (ida / vuelta)
+                        val cambiaSentido = stop.headsign.isNotBlank() &&
+                            (index == 0 || stopsList[index - 1].direction != stop.direction)
+                        if (cambiaSentido) {
+                            item {
+                                Text(
+                                    "Sentido: ${stop.headsign}",
+                                    color = AccentColor,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    modifier = Modifier.padding(top = if (index == 0) 0.dp else 10.dp)
+                                )
+                            }
+                        }
+                        item {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onStopClick(stop.id, stop.name) },
+                                colors = CardDefaults.cardColors(containerColor = CardBackground),
+                                shape = RoundedCornerShape(10.dp)
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .background(AccentColor, CircleShape),
-                                    contentAlignment = Alignment.Center
+                                Row(
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.DirectionsBus,
-                                        contentDescription = null,
-                                        tint = DarkBackground,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(stop.name, fontWeight = FontWeight.Bold, color = TextWhite, fontSize = 14.sp)
-                                    Text("Código: ${stop.id.removePrefix("14_")}", color = TextGray, fontSize = 11.sp)
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .background(AccentColor, CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.DirectionsBus,
+                                            contentDescription = null,
+                                            tint = DarkBackground,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(stop.name, fontWeight = FontWeight.Bold, color = TextWhite, fontSize = 14.sp)
+                                        Text("Código: ${codigoParada(stop.id)}", color = TextGray, fontSize = 11.sp)
+                                    }
                                 }
                             }
                         }
@@ -427,7 +444,7 @@ fun DireccionesTab(onStopClick: (String, String) -> Unit) {
                                         Toast.makeText(context, "No se encontró la dirección.", Toast.LENGTH_SHORT).show()
                                     }
                                 } catch (e: Exception) {
-                                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, e.message ?: "Error al buscar la dirección.", Toast.LENGTH_LONG).show()
                                 } finally {
                                     isLoading = false
                                 }
@@ -567,15 +584,23 @@ fun ArribosDialog(
     var arrivalsList by remember { mutableStateOf<List<ArrivalInfo>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var refreshTrigger by remember { mutableIntStateOf(0) }
-    val scope = rememberCoroutineScope()
+    // Error de la última consulta (se muestra dentro del diálogo, sin repetir un Toast cada 30 s)
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var source by remember { mutableStateOf("") }
 
     // Consulta y auto-refresco cada 30 segundos
     LaunchedEffect(refreshTrigger) {
-        isLoading = true
+        // El spinner solo se muestra si no hay nada en pantalla (evita parpadeo en cada refresco)
+        if (arrivalsList.isEmpty()) isLoading = true
         try {
-            arrivalsList = ColectivosApiClient.obtenerArribos(stopId)
+            val result = ColectivosApiClient.obtenerArribos(stopId)
+            arrivalsList = result.arrivals
+            source = result.source
+            errorMessage = null
+        } catch (e: CancellationException) {
+            throw e // se cerró el diálogo o empezó otro refresco: no es un error
         } catch (e: Exception) {
-            Toast.makeText(context, "Error cargando arribos: ${e.message}", Toast.LENGTH_LONG).show()
+            errorMessage = e.message ?: "No se pudieron cargar los arribos."
         } finally {
             isLoading = false
         }
@@ -599,7 +624,7 @@ fun ArribosDialog(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stopName, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextWhite)
-                    Text("Código Parada: ${stopId.removePrefix("14_")}", fontSize = 12.sp, color = TextGray)
+                    Text("Código Parada: ${codigoParada(stopId)}", fontSize = 12.sp, color = TextGray)
                 }
                 Row {
                     IconButton(onClick = {
@@ -628,6 +653,30 @@ fun ArribosDialog(
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = AccentColor)
                     }
+                } else if (errorMessage != null && arrivalsList.isEmpty()) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = AccentColor,
+                            modifier = Modifier.size(36.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            errorMessage ?: "",
+                            color = TextWhite,
+                            fontSize = 14.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        TextButton(onClick = { refreshTrigger++ }) {
+                            Text("Reintentar", color = AccentColor, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 } else if (arrivalsList.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
@@ -638,8 +687,25 @@ fun ArribosDialog(
                         )
                     }
                 } else {
+                  Column(modifier = Modifier.fillMaxSize()) {
+                    if (errorMessage != null) {
+                        Text(
+                            "No se pudo actualizar: $errorMessage",
+                            color = AccentColor,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        )
+                    }
+                    if (source == "gcba-gps-estimado") {
+                        Text(
+                            "Tiempos estimados según la posición GPS de cada colectivo.",
+                            color = TextGray,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        )
+                    }
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxWidth().weight(1f),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(arrivalsList) { arrival ->
@@ -690,6 +756,7 @@ fun ArribosDialog(
                             }
                         }
                     }
+                  }
                 }
             }
         },
